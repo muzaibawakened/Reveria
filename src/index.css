@@ -1,0 +1,291 @@
+@import "tailwindcss";
+
+@theme {
+  /* === Page & Surface — Cosmic Night === */
+  --color-page: #07070f;
+  --color-page-surface: #0c0c1d;
+  --color-page-elevated: #131330;
+
+  /* === Parchment Palette (for text surfaces) === */
+  --color-parchment: #f0eef5;
+  --color-parchment-mid: #c8c4d8;
+  --color-parchment-dark: #8a85a0;
+
+  /* === Gold & Accent === */
+  --color-gold: #c9a96e;
+  --color-gold-light: #e2d5b3;
+  --color-gold-dark: #a88a4e;
+  --color-amber: #d4a053;
+  --color-amber-glow: rgba(212, 160, 83, 0.25);
+
+  /* === Mystical Violet Accent === */
+  --color-violet: #7c6aef;
+  --color-violet-glow: rgba(124, 106, 239, 0.2);
+  --color-violet-soft: rgba(124, 106, 239, 0.08);
+
+  /* === Text === */
+  --color-text-primary: #eeeaf5;
+  --color-text-secondary: #8a85a0;
+  --color-text-ghost: #4a4660;
+  --color-ink: #1a1830;
+
+  /* === Borders === */
+  --color-border: rgba(201, 169, 110, 0.1);
+  --color-border-hover: rgba(201, 169, 110, 0.22);
+
+  /* === Typography === */
+  --font-serif: 'Newsreader', 'Georgia', serif;
+  --font-sans: 'Inter', system-ui, sans-serif;
+
+  /* === Shadows === */
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.5), 0 1px 4px rgba(0, 0, 0, 0.4);
+  --shadow-card-hover: 0 12px 48px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 30px rgba(201, 169, 110, 0.12);
+  --shadow-violet: 0 0 40px rgba(124, 106, 239, 0.1);
+}
+
+/* === Base === */
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--color-page);
+}
+
+body {
+  background-color: var(--color-page);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* === Cosmic Atmospheric Background === */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 15% 10%, rgba(124, 106, 239, 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 85% 15%, rgba(201, 169, 110, 0.04) 0%, transparent 40%),
+    radial-gradient(ellipse at 50% 80%, rgba(124, 106, 239, 0.03) 0%, transparent 50%),
+    radial-gradient(ellipse at 30% 60%, rgba(201, 169, 110, 0.02) 0%, transparent 35%);
+}
+
+/* Subtle noise texture overlay */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.015;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+/* === Scrollbar === */
+::-webkit-scrollbar {
+  width: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(201, 169, 110, 0.15);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(201, 169, 110, 0.3);
+}
+
+/* === Selection === */
+::selection {
+  background: rgba(124, 106, 239, 0.2);
+  color: var(--color-parchment);
+}
+
+/* === Font Classes === */
+.font-editorial {
+  font-family: var(--font-serif);
+}
+
+.font-ui {
+  font-family: var(--font-sans);
+}
+
+/* === Typography Utilities === */
+.text-editorial {
+  font-family: var(--font-serif);
+  font-style: italic;
+  letter-spacing: 0.01em;
+}
+
+/* === Glass Card (cosmic) === */
+.parchment-card {
+  background: linear-gradient(
+    135deg,
+    rgba(20, 20, 50, 0.6) 0%,
+    rgba(15, 15, 35, 0.4) 50%,
+    rgba(20, 20, 50, 0.6) 100%
+  );
+  border: 1px solid rgba(201, 169, 110, 0.08);
+  backdrop-filter: blur(16px);
+}
+
+.parchment-card:hover {
+  border-color: rgba(201, 169, 110, 0.18);
+  box-shadow: var(--shadow-glow);
+}
+
+/* === Parchment Surface (for text areas) === */
+.parchment-surface {
+  background: linear-gradient(
+    180deg,
+    rgba(20, 20, 50, 0.5) 0%,
+    rgba(15, 15, 35, 0.3) 100%
+  );
+  border: 1px solid rgba(201, 169, 110, 0.08);
+}
+
+/* === Grid Layout === */
+.dream-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 28px;
+}
+
+@media (max-width: 768px) {
+  .dream-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+}
+
+/* === Typewriter Cursor === */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+.cursor-gold::after {
+  content: '▍';
+  animation: blink 1s step-end infinite;
+  color: var(--color-gold);
+  margin-left: 2px;
+  font-style: normal;
+  font-weight: 300;
+}
+
+/* === Golden Shimmer Text === */
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+.text-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--color-gold) 0%,
+    var(--color-gold-light) 25%,
+    var(--color-amber) 50%,
+    var(--color-gold-light) 75%,
+    var(--color-gold) 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 6s linear infinite;
+}
+
+/* === Breathing Glow === */
+@keyframes breathe {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.05); }
+}
+.glow-breathe {
+  animation: breathe 4s ease-in-out infinite;
+}
+
+/* === Ink Bleed In === */
+@keyframes inkBleed {
+  0% { opacity: 0; filter: blur(4px); transform: translateY(4px); }
+  100% { opacity: 1; filter: blur(0); transform: translateY(0); }
+}
+.ink-bleed {
+  animation: inkBleed 0.8s ease-out forwards;
+}
+
+/* === Floating Drift (for particles / decorative elements) === */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
+/* === Ornamental Divider === */
+.ornament-divider {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  opacity: 0.4;
+}
+.ornament-divider::before,
+.ornament-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--color-gold),
+    transparent
+  );
+}
+
+/* === Button Glow === */
+.btn-gold {
+  background: linear-gradient(135deg, var(--color-gold-dark), var(--color-gold));
+  color: var(--color-ink);
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 20px rgba(201, 169, 110, 0.2);
+}
+.btn-gold:hover {
+  box-shadow: 0 8px 32px rgba(201, 169, 110, 0.35);
+  transform: translateY(-1px);
+}
+
+/* === Concentric Ring Sigil === */
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes spin-reverse {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
+}
+@keyframes spin-slower {
+  from { transform: rotate(15deg); }
+  to { transform: rotate(375deg); }
+}
+
+/* === Fade utilities === */
+.fade-in {
+  animation: fadeIn 0.6s ease-out forwards;
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* === Star Twinkle === */
+@keyframes twinkle {
+  0%, 100% { opacity: 0.1; }
+  50% { opacity: 0.8; }
+}
