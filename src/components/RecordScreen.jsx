@@ -1,42 +1,103 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Mic, PenLine } from "lucide-react";
 import VoiceRecorder from "./VoiceRecorder";
 import TextInput from "./TextInput";
 import DreamPreview from "./DreamPreview";
 import Particles from "./Particles";
-import {
-  MOCK_TRANSCRIPTION,
-  MOCK_STRUCTURED,
-  MOCK_TITLE,
-  MOCK_TAGS,
-  MOCK_MOOD,
-  MOCK_MOOD_COLOR,
-} from "../data";
+import useGroqStructuring from "../hooks/useGroqStructuring";
+
+const VALIDATION_ERRORS = {
+  TOO_SHORT: "Recording is too short — please speak for at least 3 seconds.",
+  NO_SPEECH: "No words were detected — try speaking louder or closer to your mic.",
+  NOT_SUPPORTED: "Voice recording is not supported in this browser — try Chrome or Edge.",
+};
+
+function formatDuration(seconds) {
+  if (seconds < 60) return `${seconds}s`;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return s > 0 ? `${m}m ${s}s` : `${m}m`;
+}
 
 const WEAVING_PHRASES = [
   "Listening to the echoes…",
   "Gathering fragments…",
   "Weaving the threads…",
+  "Untangling the narrative…",
+  "Distilling the essence…",
   "A dream takes shape…",
 ];
 
-function WeavingPhase({ onComplete }) {
+function WeavingPhase({ onComplete, aiActive }) {
   const [phraseIdx, setPhraseIdx] = useState(0);
+  const completedRef = useRef(false);
+  const onCompleteRef = useRef(onComplete);
+  const aiActiveRef = useRef(aiActive);
 
+  // Keep refs up to date without causing re-renders/re-runs
+  useEffect(() => { onCompleteRef.current = onComplete; }, [onComplete]);
+  useEffect(() => { aiActiveRef.current = aiActive; }, [aiActive]);
+
+  // Phrase cycling animation
   useEffect(() => {
     const phraseTimer = setInterval(() => {
       setPhraseIdx((prev) => {
-        if (prev >= WEAVING_PHRASES.length - 1) {
-          clearInterval(phraseTimer);
-          setTimeout(onComplete, 800);
-          return prev;
-        }
-        return prev + 1;
+        const next = prev + 1;
+        return next >= WEAVING_PHRASES.length ? WEAVING_PHRASES.length - 1 : next;
       });
     }, 1800);
     return () => clearInterval(phraseTimer);
-  }, [onComplete]);
+  }, []);
+
+  // MINIMUM ANIMATION: After 8 seconds, start checking if AI is done
+  useEffect(() => {
+    const minTimer = setTimeout(() => {
+      const tryComplete = () => {
+        if (completedRef.current) return;
+
+        if (!aiActiveRef.current) {
+          // AI is done (or never started) — proceed
+          completedRef.current = true;
+          setTimeout(() => onCompleteRef.current?.(), 600);
+        } else {
+          // AI still running — poll every 500ms
+          const poll = setInterval(() => {
+            if (completedRef.current) { clearInterval(poll); return; }
+            if (!aiActiveRef.current) {
+              clearInterval(poll);
+              completedRef.current = true;
+              setTimeout(() => onCompleteRef.current?.(), 600);
+            }
+          }, 500);
+
+          // Hard stop: never wait more than 20 additional seconds
+          setTimeout(() => {
+            if (!completedRef.current) {
+              clearInterval(poll);
+              completedRef.current = true;
+              onCompleteRef.current?.();
+            }
+          }, 20000);
+        }
+      };
+      tryComplete();
+    }, 8000);
+
+    // ABSOLUTE SAFETY: Force-complete at 25 seconds no matter what
+    const forceTimer = setTimeout(() => {
+      if (!completedRef.current) {
+        console.warn("[WeavingPhase] Force-completing at 25s");
+        completedRef.current = true;
+        onCompleteRef.current?.();
+      }
+    }, 25000);
+
+    return () => {
+      clearTimeout(minTimer);
+      clearTimeout(forceTimer);
+    };
+  }, []); // Empty deps — runs exactly once on mount
 
   return (
     <motion.div
@@ -86,77 +147,96 @@ function WeavingPhase({ onComplete }) {
   );
 }
 
-function StructuringPhase() {
-  return (
-    <motion.div
-      key="structuring"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.8 }}
-      className="flex flex-col items-center"
-    >
-      <motion.div
-        className="w-px h-24 mb-8"
-        style={{
-          background: "linear-gradient(to bottom, transparent, var(--color-violet), var(--color-gold), transparent)",
-        }}
-        animate={{ scaleY: [0.8, 1.1, 0.8], opacity: [0.4, 0.8, 0.4] }}
-        transition={{ duration: 2, repeat: Infinity }}
-      />
-      <p className="tracking-[0.3em] uppercase text-xs font-ui" style={{ color: "var(--color-violet)", opacity: 0.7 }}>
-        A dream takes shape
-      </p>
-    </motion.div>
-  );
-}
-
 export default function RecordScreen({ onSave, onNavigate }) {
   const [mode, setMode] = useState("voice"); // 'voice' | 'text'
-  const [phase, setPhase] = useState("input"); // 'input' | 'weaving' | 'structuring' | 'preview'
+  const [phase, setPhase] = useState("input"); // 'input' | 'weaving' | 'preview'
   const [voiceState, setVoiceState] = useState("idle");
   const [typedText, setTypedText] = useState("");
   const [pendingDream, setPendingDream] = useState(null);
   const [voiceTranscript, setVoiceTranscript] = useState("");
+  const [voiceError, setVoiceError] = useState(null);
+  const [voiceDuration, setVoiceDuration] = useState(0);
+  const [aiResult, setAiResult] = useState(null);
 
-  // When voice enters "transcribing" phase, go to weaving
+  const { structureDream, structuring } = useGroqStructuring();
+  const aiStartedRef = useRef(false);
+
+  // Start AI structuring when weaving phase begins
   useEffect(() => {
-    if (voiceState === "transcribing") {
-      setPhase("weaving");
-    }
-  }, [voiceState]);
+    if (phase !== "weaving" || aiStartedRef.current) return;
+
+    const raw = mode === "voice" ? voiceTranscript.trim() : typedText.trim();
+    if (!raw) return;
+
+    aiStartedRef.current = true;
+
+    // Run AI structuring in parallel with weaving animation
+    structureDream(raw).then((result) => {
+      setAiResult(result);
+    });
+  }, [phase, mode, voiceTranscript, typedText, structureDream]);
 
   // Capture transcript from VoiceRecorder
   const handleTranscript = useCallback((text) => {
-    setVoiceTranscript(text);
+    // Validation: too short (less than 3 seconds)
+    if (voiceDuration < 3) {
+      setVoiceError(VALIDATION_ERRORS.TOO_SHORT);
+      setVoiceTranscript("");
+      return;
+    }
+
+    // Validation: no speech detected
+    const finalText = (text || "").trim();
+    if (!finalText) {
+      setVoiceError(VALIDATION_ERRORS.NO_SPEECH);
+      return;
+    }
+
+    // All good — clear any previous error and proceed
+    setVoiceError(null);
+    setVoiceTranscript(finalText);
+    aiStartedRef.current = false;
+    setAiResult(null);
+    setPhase("weaving");
+  }, [voiceDuration]);
+
+  // Surface transcription errors from VoiceRecorder
+  const handleVoiceError = useCallback((errorMsg) => {
+    setVoiceError(errorMsg);
   }, []);
 
-  // After weaving completes, build the dream and go to preview
-  const handleWeavingComplete = useCallback(() => {
-    // Use real transcript if available, otherwise fall back to mock
-    const raw = mode === "voice"
-      ? (voiceTranscript || MOCK_TRANSCRIPTION)
-      : typedText;
+  // Capture duration from VoiceRecorder
+  const handleDurationChange = useCallback((duration) => {
+    setVoiceDuration(duration);
+  }, []);
+
+  // After weaving animation completes AND AI is done, build the dream and go to preview
+  const handleWeavingAnimationDone = useCallback(() => {
+    // Don't block on structuring — we have fallback values ready
+    // The wasAiActiveRef + force-complete timeout handle timing properly
+    const raw = mode === "voice" ? voiceTranscript.trim() : typedText.trim();
+
     const newDream = {
-      // No id — Supabase will generate a UUID on insert
       raw,
-      title: mode === "voice" ? MOCK_TITLE : "Untitled Dream",
-      mood: MOCK_MOOD,
-      moodColor: MOCK_MOOD_COLOR,
+      title: aiResult?.title || "A Dream Remembered",
+      mood: aiResult?.mood || "Reflective",
+      moodColor: aiResult?.moodColor || "#7c6aef",
       timestamp: new Date().toISOString(),
-      duration: "Just now",
-      structured: mode === "voice" ? MOCK_STRUCTURED : raw,
-      tags: MOCK_TAGS,
-      moodScore: 0.8,
-      entryType: mode, // 'voice' or 'text'
-      aiStatus: "pending",
+      duration: mode === "voice" ? formatDuration(voiceDuration) : "Just now",
+      structured: aiResult?.structured || raw,
+      tags: aiResult?.tags || [],
+      moodScore: aiResult?.moodScore ?? 0.5,
+      entryType: mode,
+      aiStatus: aiResult?.aiStatus || "done",
     };
     setPendingDream(newDream);
     setPhase("preview");
-  }, [mode, typedText, voiceTranscript]);
+  }, [mode, typedText, voiceTranscript, voiceDuration, structuring, aiResult]);
 
   const handleTextSubmit = useCallback(() => {
     if (!typedText.trim()) return;
+    aiStartedRef.current = false;
+    setAiResult(null);
     setPhase("weaving");
   }, [typedText]);
 
@@ -167,6 +247,9 @@ export default function RecordScreen({ onSave, onNavigate }) {
       setVoiceState("idle");
       setTypedText("");
       setPendingDream(null);
+      setVoiceError(null);
+      setAiResult(null);
+      aiStartedRef.current = false;
     },
     [onSave]
   );
@@ -176,11 +259,14 @@ export default function RecordScreen({ onSave, onNavigate }) {
     setVoiceState("idle");
     setTypedText("");
     setPendingDream(null);
+    setVoiceError(null);
+    setAiResult(null);
+    aiStartedRef.current = false;
   }, []);
 
   return (
     <div className="relative min-h-screen flex flex-col items-center justify-center px-6 pt-24 pb-16 overflow-hidden">
-      <Particles count={80} variant="stars" />
+      <Particles count={250} variant="stars" />
 
       <AnimatePresence mode="wait">
         {phase === "preview" && pendingDream ? (
@@ -189,11 +275,14 @@ export default function RecordScreen({ onSave, onNavigate }) {
             dream={pendingDream}
             onSave={handleSave}
             onDiscard={handleDiscard}
+            onUpdate={(updates) => setPendingDream((prev) => ({ ...prev, ...updates }))}
           />
         ) : phase === "weaving" ? (
-          <WeavingPhase key="weaving" onComplete={handleWeavingComplete} />
-        ) : phase === "structuring" ? (
-          <StructuringPhase key="structuring" />
+          <WeavingPhase
+            key="weaving"
+            onComplete={handleWeavingAnimationDone}
+            aiActive={structuring}
+          />
         ) : (
           /* === MAIN INPUT PHASE — The Dreaming Portal === */
           <motion.div
@@ -219,6 +308,27 @@ export default function RecordScreen({ onSave, onNavigate }) {
               </p>
             </motion.div>
 
+            {/* Error message */}
+            <AnimatePresence>
+              {voiceError && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.4 }}
+                  className="mb-6 px-6 py-3 rounded-xl text-center max-w-md"
+                  style={{
+                    background: "rgba(220, 80, 80, 0.1)",
+                    border: "1px solid rgba(220, 80, 80, 0.2)",
+                  }}
+                >
+                  <p className="text-xs font-ui tracking-wide" style={{ color: "rgba(255, 150, 150, 0.9)" }}>
+                    {voiceError}
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             {/* Decorative divider */}
             <motion.div
               initial={{ opacity: 0, scaleX: 0 }}
@@ -236,7 +346,7 @@ export default function RecordScreen({ onSave, onNavigate }) {
               className="flex items-center gap-1 p-1 rounded-full parchment-card mb-10"
             >
               <button
-                onClick={() => setMode("voice")}
+                onClick={() => { setMode("voice"); setVoiceError(null); }}
                 className={`flex items-center gap-2 px-5 py-2 rounded-full text-xs font-ui uppercase tracking-[0.15em] transition-all duration-300 ${
                   mode === "voice"
                     ? "bg-gold/10 text-gold"
@@ -247,7 +357,7 @@ export default function RecordScreen({ onSave, onNavigate }) {
                 Speak
               </button>
               <button
-                onClick={() => setMode("text")}
+                onClick={() => { setMode("text"); setVoiceError(null); }}
                 className={`flex items-center gap-2 px-5 py-2 rounded-full text-xs font-ui uppercase tracking-[0.15em] transition-all duration-300 ${
                   mode === "text"
                     ? "bg-gold/10 text-gold"
@@ -269,10 +379,12 @@ export default function RecordScreen({ onSave, onNavigate }) {
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ duration: 0.5 }}
                 >
-                <VoiceRecorder
+                  <VoiceRecorder
                     state={voiceState}
                     onStateChange={setVoiceState}
                     onTranscript={handleTranscript}
+                    onDurationChange={handleDurationChange}
+                    onError={handleVoiceError}
                   />
                 </motion.div>
               ) : (

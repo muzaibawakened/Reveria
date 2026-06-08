@@ -1,12 +1,32 @@
-import React from "react";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, Trash2 } from "lucide-react";
+import { ArrowLeft, Trash2, PenLine, RefreshCw, Check, X } from "lucide-react";
 import MoodBadge from "./MoodBadge";
 import OrnamentalDivider from "./OrnamentalDivider";
 import { formatTimestamp } from "../data";
+import useGroqStructuring from "../hooks/useGroqStructuring";
 
-export default function DreamDetail({ dream, onBack, onDelete }) {
+export default function DreamDetail({ dream, onBack, onDelete, onUpdate }) {
+  const [isEditingRaw, setIsEditingRaw] = useState(false);
+  const [editRawText, setEditRawText] = useState(dream?.raw || "");
+  const { structureDream, structuring } = useGroqStructuring();
+
   if (!dream) return null;
+
+  const handleSaveRaw = async () => {
+    if (editRawText.trim() === dream.raw) {
+      setIsEditingRaw(false);
+      return;
+    }
+    await onUpdate(dream.id, { raw: editRawText.trim() });
+    setIsEditingRaw(false);
+  };
+
+  const handleRegenerate = async () => {
+    await onUpdate(dream.id, { aiStatus: "processing" });
+    const result = await structureDream(dream.raw);
+    await onUpdate(dream.id, result);
+  };
 
   return (
     <motion.div
@@ -58,7 +78,7 @@ export default function DreamDetail({ dream, onBack, onDelete }) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          className="font-editorial text-5xl md:text-7xl font-light italic text-parchment mb-8 leading-tight"
+          className="font-editorial text-4xl sm:text-5xl md:text-7xl font-light italic text-parchment mb-8 leading-tight"
         >
           {dream.title}
         </motion.h1>
@@ -72,16 +92,28 @@ export default function DreamDetail({ dream, onBack, onDelete }) {
           transition={{ delay: 0.6, duration: 0.8 }}
           className="mb-12"
         >
-          <p className="text-[10px] font-ui uppercase tracking-[0.3em] text-text-ghost mb-5">
-            The Dream
-          </p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
+            <p className="text-[10px] font-ui uppercase tracking-[0.3em] text-text-ghost">
+              The Dream
+            </p>
+            {(dream.aiStatus === "done" || dream.aiStatus === "error") && !structuring && (
+              <button
+                onClick={handleRegenerate}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-ui uppercase tracking-[0.1em] text-text-ghost hover:text-violet transition-colors group self-start sm:self-auto"
+                title="Regenerate Dream Structure"
+              >
+                <RefreshCw className="w-3 h-3 group-hover:rotate-180 transition-transform duration-500" />
+                Retell
+              </button>
+            )}
+          </div>
           <p className="font-editorial text-2xl md:text-3xl leading-relaxed text-parchment-mid italic">
             {dream.structured}
           </p>
         </motion.section>
 
         {/* AI Processing Indicator */}
-        {(dream.aiStatus === "pending" || dream.aiStatus === "processing") && (
+        {(dream.aiStatus === "pending" || dream.aiStatus === "processing" || structuring) && (
           <motion.section
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
@@ -95,9 +127,7 @@ export default function DreamDetail({ dream, onBack, onDelete }) {
                 transition={{ duration: 1.5, repeat: Infinity }}
               />
               <p className="text-xs font-ui tracking-[0.15em] text-text-ghost">
-                {dream.aiStatus === "pending"
-                  ? "Weaving your dream…"
-                  : "Almost there…"}
+                {structuring ? "Re-weaving your dream…" : "Weaving your dream…"}
               </p>
             </div>
           </motion.section>
@@ -136,13 +166,51 @@ export default function DreamDetail({ dream, onBack, onDelete }) {
           transition={{ delay: 0.9, duration: 0.8 }}
           className="mb-12"
         >
-          <p className="text-[10px] font-ui uppercase tracking-[0.3em] text-text-ghost mb-5">
-            Raw Memory
-          </p>
-          <div className="parchment-surface rounded-2xl p-6 md:p-8">
-            <p className="text-text-ghost text-base leading-relaxed italic font-editorial">
-              "{dream.raw}"
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-5 gap-3">
+            <p className="text-[10px] font-ui uppercase tracking-[0.3em] text-text-ghost">
+              Raw Memory
             </p>
+            {!isEditingRaw && (
+              <button
+                onClick={() => {
+                  setEditRawText(dream.raw);
+                  setIsEditingRaw(true);
+                }}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-ui uppercase tracking-[0.1em] text-text-ghost hover:text-gold transition-colors self-start sm:self-auto"
+              >
+                <PenLine className="w-3 h-3" /> Edit
+              </button>
+            )}
+          </div>
+          <div className="parchment-surface rounded-2xl p-6 md:p-8">
+            {isEditingRaw ? (
+              <div className="flex flex-col gap-4">
+                <textarea
+                  value={editRawText}
+                  onChange={(e) => setEditRawText(e.target.value)}
+                  className="w-full bg-transparent text-text-ghost text-base leading-relaxed italic font-editorial outline-none resize-none min-h-[100px]"
+                  autoFocus
+                />
+                <div className="flex flex-wrap justify-end gap-3 pt-2 border-t border-border/30">
+                  <button
+                    onClick={() => setIsEditingRaw(false)}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-full text-[10px] sm:text-xs font-ui uppercase tracking-[0.1em] text-text-ghost hover:bg-white/5 transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" /> Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveRaw}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-full text-[10px] sm:text-xs font-ui uppercase tracking-[0.1em] text-gold hover:bg-gold/10 transition-colors"
+                  >
+                    <Check className="w-3.5 h-3.5" /> Save
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-text-ghost text-base leading-relaxed italic font-editorial break-words">
+                "{dream.raw}"
+              </p>
+            )}
           </div>
         </motion.section>
 

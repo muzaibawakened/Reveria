@@ -1,10 +1,29 @@
-import React from "react";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
 import MoodBadge from "./MoodBadge";
 import OrnamentalDivider from "./OrnamentalDivider";
-import { Check, RotateCcw } from "lucide-react";
+import { Check, RotateCcw, PenLine, RefreshCw, X } from "lucide-react";
+import useGroqStructuring from "../hooks/useGroqStructuring";
 
-export default function DreamPreview({ dream, onSave, onDiscard }) {
+export default function DreamPreview({ dream, onSave, onDiscard, onUpdate }) {
+  const [isEditingRaw, setIsEditingRaw] = useState(false);
+  const [editRawText, setEditRawText] = useState(dream?.raw || "");
+  const { structureDream, structuring } = useGroqStructuring();
+
+  const handleSaveRaw = async () => {
+    if (editRawText.trim() === dream.raw) {
+      setIsEditingRaw(false);
+      return;
+    }
+    if (onUpdate) onUpdate({ raw: editRawText.trim() });
+    setIsEditingRaw(false);
+  };
+
+  const handleRegenerate = async () => {
+    if (onUpdate) onUpdate({ aiStatus: "processing" });
+    const result = await structureDream(dream.raw);
+    if (onUpdate) onUpdate(result);
+  };
   return (
     <motion.div
       initial={{ opacity: 0, y: 40, scale: 0.95 }}
@@ -39,9 +58,31 @@ export default function DreamPreview({ dream, onSave, onDiscard }) {
 
         {/* Structured text */}
         <div className="relative z-10 mb-8">
-          <p className="text-[10px] font-ui uppercase tracking-[0.3em] text-text-ghost mb-4">
-            Distilled Memory
-          </p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+            <p className="text-[10px] font-ui uppercase tracking-[0.3em] text-text-ghost">
+              Distilled Memory
+            </p>
+            {onUpdate && !structuring && (
+              <button
+                onClick={handleRegenerate}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-ui uppercase tracking-[0.1em] text-text-ghost hover:text-violet transition-colors group self-start sm:self-auto border border-border/30 hover:border-violet/30 bg-white/5"
+                title="Regenerate Dream Structure"
+              >
+                <RefreshCw className="w-3 h-3 group-hover:rotate-180 transition-transform duration-500" />
+                Retell
+              </button>
+            )}
+            {structuring && (
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-ui uppercase tracking-[0.1em] text-text-ghost">
+                <motion.div
+                  className="w-1.5 h-1.5 rounded-full bg-violet"
+                  animate={{ opacity: [0.3, 1, 0.3] }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                />
+                Re-weaving…
+              </div>
+            )}
+          </div>
           <p className="font-editorial text-xl md:text-2xl leading-relaxed text-parchment-mid italic">
             {dream.structured}
           </p>
@@ -49,12 +90,50 @@ export default function DreamPreview({ dream, onSave, onDiscard }) {
 
         {/* Raw transcription */}
         <div className="relative z-10 mb-8">
-          <p className="text-[10px] font-ui uppercase tracking-[0.3em] text-text-ghost mb-4">
-            Raw Memory
-          </p>
-          <p className="text-text-ghost text-sm leading-relaxed italic">
-            "{dream.raw}"
-          </p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+            <p className="text-[10px] font-ui uppercase tracking-[0.3em] text-text-ghost">
+              Raw Memory
+            </p>
+            {!isEditingRaw && onUpdate && (
+              <button
+                onClick={() => {
+                  setEditRawText(dream.raw);
+                  setIsEditingRaw(true);
+                }}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-ui uppercase tracking-[0.1em] text-text-ghost hover:text-gold transition-colors self-start sm:self-auto border border-border/30 hover:border-gold/30 bg-white/5"
+              >
+                <PenLine className="w-3 h-3" /> Edit
+              </button>
+            )}
+          </div>
+          {isEditingRaw ? (
+            <div className="flex flex-col gap-4 bg-white/5 rounded-2xl p-4 border border-border/30">
+              <textarea
+                value={editRawText}
+                onChange={(e) => setEditRawText(e.target.value)}
+                className="w-full bg-transparent text-text-ghost text-sm leading-relaxed italic font-editorial outline-none resize-none min-h-[100px]"
+                autoFocus
+              />
+              <div className="flex flex-wrap justify-end gap-3 pt-2 border-t border-border/30">
+                <button
+                  onClick={() => setIsEditingRaw(false)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-full text-[10px] sm:text-xs font-ui uppercase tracking-[0.1em] text-text-ghost hover:bg-white/10 transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" /> Cancel
+                </button>
+                <button
+                  onClick={handleSaveRaw}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-full text-[10px] sm:text-xs font-ui uppercase tracking-[0.1em] text-gold hover:bg-gold/10 transition-colors"
+                >
+                  <Check className="w-3.5 h-3.5" /> Save
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-text-ghost text-sm leading-relaxed italic">
+              "{dream.raw}"
+            </p>
+          )}
         </div>
 
         {/* Tags */}

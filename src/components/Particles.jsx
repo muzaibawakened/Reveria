@@ -130,6 +130,124 @@ export default function Particles({ count = 60, variant = "stars" }) {
             }}
           />
         </motion.div>
+        {/* Third shooting star */}
+        <motion.div
+          className="absolute"
+          style={{
+            width: 2,
+            height: 2,
+            background: "rgba(255, 240, 200, 0.9)",
+            borderRadius: "50%",
+            boxShadow: "0 0 6px 2px rgba(255, 240, 200, 0.3)",
+            top: "70%",
+            left: "90%",
+          }}
+          animate={{
+            x: [0, -500],
+            y: [0, -150],
+            opacity: [0, 1, 1, 0],
+            scale: [0.5, 1, 0.5],
+          }}
+          transition={{
+            duration: 3,
+            repeat: Infinity,
+            repeatDelay: 15,
+            delay: 4,
+            ease: "easeOut",
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 2,
+              width: 50,
+              height: 1,
+              background: "linear-gradient(90deg, rgba(255,240,200,0.4), transparent)",
+              borderRadius: 1,
+            }}
+          />
+        </motion.div>
+
+        {/* Fourth shooting star */}
+        <motion.div
+          className="absolute"
+          style={{
+            width: 1.5,
+            height: 1.5,
+            background: "rgba(200, 220, 255, 0.8)",
+            borderRadius: "50%",
+            boxShadow: "0 0 5px 2px rgba(200, 220, 255, 0.2)",
+            top: "40%",
+            left: "10%",
+          }}
+          animate={{
+            x: [0, 400],
+            y: [0, -200],
+            opacity: [0, 0.8, 0.8, 0],
+            scale: [0.5, 1, 0.5],
+          }}
+          transition={{
+            duration: 2.2,
+            repeat: Infinity,
+            repeatDelay: 20,
+            delay: 10,
+            ease: "easeOut",
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              right: 2,
+              width: 35,
+              height: 1,
+              background: "linear-gradient(270deg, rgba(200,220,255,0.3), transparent)",
+              borderRadius: 1,
+            }}
+          />
+        </motion.div>
+
+        {/* Fifth shooting star */}
+        <motion.div
+          className="absolute"
+          style={{
+            width: 2.5,
+            height: 2.5,
+            background: "rgba(250, 210, 250, 0.9)",
+            borderRadius: "50%",
+            boxShadow: "0 0 6px 2px rgba(250, 210, 250, 0.4)",
+            top: "5%",
+            left: "40%",
+          }}
+          animate={{
+            x: [0, -300],
+            y: [0, 300],
+            opacity: [0, 1, 1, 0],
+            scale: [0.5, 1.2, 0.5],
+          }}
+          transition={{
+            duration: 1.8,
+            repeat: Infinity,
+            repeatDelay: 10,
+            delay: 2,
+            ease: "easeOut",
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 2,
+              width: 45,
+              height: 1,
+              background: "linear-gradient(90deg, rgba(250,210,250,0.5), transparent)",
+              transform: "rotate(45deg)",
+              transformOrigin: "left center",
+              borderRadius: 1,
+            }}
+          />
+        </motion.div>
       </div>
     );
   }

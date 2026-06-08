@@ -206,11 +206,52 @@ export default function useDreams() {
     }
   }, []);
 
+  // ---- UPDATE a dream ----
+  const updateDream = useCallback(async (id, updates) => {
+    try {
+      setError(null);
+      
+      // Convert frontend fields back to snake_case if necessary
+      const rowUpdates = { ...updates };
+      if (updates.moodColor) rowUpdates.mood_color = updates.moodColor;
+      if (updates.moodScore !== undefined) rowUpdates.mood_score = updates.moodScore;
+      if (updates.entryType) rowUpdates.entry_type = updates.entryType;
+      if (updates.aiStatus) rowUpdates.ai_status = updates.aiStatus;
+      
+      delete rowUpdates.moodColor;
+      delete rowUpdates.moodScore;
+      delete rowUpdates.entryType;
+      delete rowUpdates.aiStatus;
+      delete rowUpdates.timestamp; // created_at shouldn't be manually updated
+
+      const { data, error: updateError } = await supabase
+        .from("dreams")
+        .update(rowUpdates)
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (updateError) throw updateError;
+
+      const updatedDream = rowToDream(data);
+
+      // Optimistically update local state
+      setDreams((prev) => prev.map((d) => (d.id === id ? updatedDream : d)));
+
+      return updatedDream;
+    } catch (err) {
+      console.error("Failed to update dream:", err);
+      setError(err.message);
+      throw err;
+    }
+  }, []);
+
   return {
     dreams,
     loading,
     error,
     createDream,
     deleteDream,
+    updateDream,
   };
 }

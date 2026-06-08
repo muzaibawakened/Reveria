@@ -7,7 +7,7 @@ import DreamDetail from "./components/DreamDetail";
 import useDreams from "./hooks/useDreams";
 
 export default function App() {
-  const { dreams, loading, error, createDream, deleteDream } = useDreams();
+  const { dreams, loading, error, createDream, deleteDream, updateDream } = useDreams();
   const [currentView, setCurrentView] = useState("record");
   const [selectedDreamId, setSelectedDreamId] = useState(null);
 
@@ -87,6 +87,7 @@ export default function App() {
               dream={selectedDream}
               onBack={() => navigate("vault")}
               onDelete={handleDeleteDream}
+              onUpdate={updateDream}
             />
           </motion.div>
         ) : (
