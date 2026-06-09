@@ -170,6 +170,26 @@ body::after {
   }
 }
 
+/* === Mobile Performance === */
+/* Reduce expensive backdrop-filter on mobile GPUs */
+@media (max-width: 768px) {
+  .parchment-card {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  /* Faster tap response — remove 300ms click delay */
+  button, a, [role="button"] {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* Hint browser to composite these layers separately */
+  .parchment-card, header {
+    will-change: transform;
+    transform: translateZ(0);
+  }
+}
+
+
 /* === Typewriter Cursor === */
 @keyframes blink {
   0%, 100% { opacity: 1; }

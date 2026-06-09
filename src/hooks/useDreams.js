@@ -254,7 +254,57 @@ export default function useDreams(userId) {
       setError(err.message);
       throw err;
     }
-  }, []);
+  }, [userId]);
+
+  // ---- BACKUP — download dreams as a JSON file ----
+  const backupDreams = useCallback(() => {
+    if (!dreams.length) return;
+    const blob = new Blob([JSON.stringify(dreams, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `reveria-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [dreams]);
+
+  // ---- RESTORE — import dreams from a JSON backup file ----
+  const restoreDreams = useCallback(async (file) => {
+    if (!userId) throw new Error("Not authenticated");
+    try {
+      const text = await file.text();
+      const imported = JSON.parse(text);
+      if (!Array.isArray(imported)) throw new Error("Invalid backup file format.");
+
+      // Deduplicate: skip dreams that match existing raw+timestamp
+      const existingKeys = new Set(dreams.map((d) => `${d.raw}|${d.timestamp}`));
+
+      const toInsert = imported
+        .filter((d) => d.raw && !existingKeys.has(`${d.raw}|${d.timestamp}`))
+        .map((d) => ({ ...dreamToRow(d), user_id: userId }));
+
+      if (!toInsert.length) return 0;
+
+      const { data, error: insertError } = await supabase
+        .from("dreams")
+        .insert(toInsert)
+        .select();
+
+      if (insertError) throw insertError;
+
+      const newDreams = data.map(rowToDream);
+      setDreams((prev) => {
+        const merged = [...newDreams, ...prev];
+        merged.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        return merged;
+      });
+
+      return newDreams.length;
+    } catch (err) {
+      console.error("Failed to restore dreams:", err);
+      throw err;
+    }
+  }, [userId, dreams]);
 
   return {
     dreams,
@@ -263,5 +313,7 @@ export default function useDreams(userId) {
     createDream,
     deleteDream,
     updateDream,
+    backupDreams,
+    restoreDreams,
   };
 }

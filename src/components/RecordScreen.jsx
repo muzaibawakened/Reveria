@@ -266,7 +266,7 @@ export default function RecordScreen({ onSave, onNavigate }) {
 
   return (
     <div className="relative min-h-screen flex flex-col items-center justify-center px-6 pt-24 pb-16 overflow-hidden">
-      <Particles count={250} variant="stars" />
+      <Particles count={window.innerWidth < 768 ? 60 : 250} variant="stars" />
 
       <AnimatePresence mode="wait">
         {phase === "preview" && pendingDream ? (
