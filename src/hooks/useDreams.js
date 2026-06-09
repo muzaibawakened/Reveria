@@ -52,14 +52,15 @@ function dreamToRow(dream) {
   };
 }
 
-export default function useDreams() {
+export default function useDreams(userId) {
   const [dreams, setDreams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const channelRef = useRef(null);
 
-  // ---- FETCH all dreams on mount ----
+  // ---- FETCH all dreams on mount (scoped to this user) ----
   useEffect(() => {
+    if (!userId) return; // wait until auth is ready
     let cancelled = false;
 
     async function fetchDreams() {
@@ -70,6 +71,7 @@ export default function useDreams() {
         const { data, error: fetchError } = await supabase
           .from("dreams")
           .select("*")
+          .eq("user_id", userId)
           .order("created_at", { ascending: false });
 
         if (fetchError) throw fetchError;
@@ -93,19 +95,21 @@ export default function useDreams() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [userId]);
 
-  // ---- REALTIME subscription ----
-  // Listen for changes to dreams (AI processing updates, new dreams, deletions)
+  // ---- REALTIME subscription (scoped to this user) ----
   useEffect(() => {
+    if (!userId) return;
+
     const channel = supabase
-      .channel("dreams-realtime")
+      .channel(`dreams-realtime-${userId}`)
       .on(
         "postgres_changes",
         {
-          event: "*",          // INSERT, UPDATE, DELETE
+          event: "*",
           schema: "public",
           table: "dreams",
+          filter: `user_id=eq.${userId}`,
         },
         (payload) => {
           const { eventType, new: newRow, old: oldRow } = payload;
@@ -146,13 +150,14 @@ export default function useDreams() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [userId]);
 
-  // ---- CREATE a new dream ----
+  // ---- CREATE a new dream (attached to this user) ----
   const createDream = useCallback(async (dreamData) => {
+    if (!userId) throw new Error("Not authenticated");
     try {
       setError(null);
-      const row = dreamToRow(dreamData);
+      const row = { ...dreamToRow(dreamData), user_id: userId };
 
       const { data, error: insertError } = await supabase
         .from("dreams")
@@ -181,6 +186,7 @@ export default function useDreams() {
 
   // ---- DELETE a dream ----
   const deleteDream = useCallback(async (id) => {
+    if (!userId) return;
     try {
       setError(null);
 
@@ -190,7 +196,8 @@ export default function useDreams() {
       const { error: deleteError } = await supabase
         .from("dreams")
         .delete()
-        .eq("id", id);
+        .eq("id", id)
+        .eq("user_id", userId);
 
       if (deleteError) throw deleteError;
     } catch (err) {
@@ -200,6 +207,7 @@ export default function useDreams() {
       const { data } = await supabase
         .from("dreams")
         .select("*")
+        .eq("user_id", userId)
         .order("created_at", { ascending: false });
       if (data) setDreams(data.map(rowToDream));
       throw err;
@@ -208,6 +216,7 @@ export default function useDreams() {
 
   // ---- UPDATE a dream ----
   const updateDream = useCallback(async (id, updates) => {
+    if (!userId) return;
     try {
       setError(null);
       
@@ -228,6 +237,7 @@ export default function useDreams() {
         .from("dreams")
         .update(rowUpdates)
         .eq("id", id)
+        .eq("user_id", userId)
         .select()
         .single();
 

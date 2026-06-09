@@ -284,8 +284,26 @@ body::after {
   to { opacity: 1; }
 }
 
-/* === Star Twinkle === */
+/* === Star Twinkle (CSS-only, GPU-composited) === */
 @keyframes twinkle {
-  0%, 100% { opacity: 0.1; }
-  50% { opacity: 0.8; }
+  0%, 100% { opacity: 0.1; transform: scale(0.8); }
+  50% { opacity: 0.85; transform: scale(1.2); }
+}
+@keyframes twinkle-slow {
+  0%, 100% { opacity: 0.05; transform: scale(0.9); }
+  50% { opacity: 0.6; transform: scale(1.15); }
+}
+@keyframes twinkle-fast {
+  0%, 100% { opacity: 0.15; transform: scale(0.85); }
+  50% { opacity: 0.9; transform: scale(1.1); }
+}
+
+/* Star animation classes */
+.star-twinkle { animation: twinkle var(--star-dur, 4s) ease-in-out infinite var(--star-delay, 0s); will-change: opacity, transform; }
+.star-twinkle-slow { animation: twinkle-slow var(--star-dur, 6s) ease-in-out infinite var(--star-delay, 0s); will-change: opacity, transform; }
+.star-twinkle-fast { animation: twinkle-fast var(--star-dur, 2.5s) ease-in-out infinite var(--star-delay, 0s); will-change: opacity, transform; }
+
+/* Mobile: reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  .star-twinkle, .star-twinkle-slow, .star-twinkle-fast { animation: none; }
 }

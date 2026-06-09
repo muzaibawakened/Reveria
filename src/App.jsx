@@ -5,9 +5,11 @@ import RecordScreen from "./components/RecordScreen";
 import VaultScreen from "./components/VaultScreen";
 import DreamDetail from "./components/DreamDetail";
 import useDreams from "./hooks/useDreams";
+import useAuth from "./hooks/useAuth";
 
 export default function App() {
-  const { dreams, loading, error, createDream, deleteDream, updateDream } = useDreams();
+  const { userId, authLoading } = useAuth();
+  const { dreams, loading, error, createDream, deleteDream, updateDream } = useDreams(userId);
   const [currentView, setCurrentView] = useState("record");
   const [selectedDreamId, setSelectedDreamId] = useState(null);
 
@@ -47,7 +49,21 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-page">
-      <Header currentView={currentView} onNavigate={navigate} />
+      {/* Auth loading gate — shown only for the first ~200ms on first visit */}
+      {authLoading ? (
+        <div className="flex items-center justify-center min-h-screen">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center"
+          >
+            <div className="text-gold text-2xl font-editorial mb-2">✦</div>
+            <p className="text-parchment-dark text-sm">Opening your journal…</p>
+          </motion.div>
+        </div>
+      ) : (
+        <>
+          <Header currentView={currentView} onNavigate={navigate} />
 
       <AnimatePresence mode="wait">
         {currentView === "record" ? (
@@ -108,6 +124,8 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
+        </>
+      )}
     </div>
   );
 }
