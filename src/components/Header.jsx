@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Moon, Menu, X, BookOpen, Download, Upload, Check, AlertCircle } from "lucide-react";
+import { Moon, Menu, X, BookOpen, Mic, Download, Upload, Check, AlertCircle } from "lucide-react";
 
 export default function Header({ currentView, onNavigate, onBackup, onRestore, dreamCount }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -72,19 +72,46 @@ export default function Header({ currentView, onNavigate, onBackup, onRestore, d
 
         <div className="flex-1" />
 
-        {/* Vault quick-access button (always visible) */}
+        {/* Vault / Record toggle button — icon transitions to signal destination */}
         <motion.button
           whileHover={{ scale: 1.08 }}
           whileTap={{ scale: 0.92 }}
           onClick={() => onNavigate(currentView === "record" ? "vault" : "record")}
-          className="p-2.5 rounded-full border border-white/[0.06] hover:border-gold/20 transition-all duration-300 group"
-          title={currentView === "record" ? "Your Dreams" : "Record Dream"}
+          className="p-2.5 rounded-full border border-white/[0.06] hover:border-gold/20 transition-all duration-300 group relative"
+          title={currentView === "record" ? "Your Dreams" : "Back to Recording"}
           id="header-vault-btn"
         >
-          <BookOpen
-            className="w-4 h-4 text-text-secondary group-hover:text-gold transition-colors"
-            strokeWidth={1.5}
-          />
+          <AnimatePresence mode="wait" initial={false}>
+            {currentView === "record" ? (
+              <motion.span
+                key="book"
+                initial={{ rotate: -30, opacity: 0, scale: 0.7 }}
+                animate={{ rotate: 0, opacity: 1, scale: 1 }}
+                exit={{ rotate: 30, opacity: 0, scale: 0.7 }}
+                transition={{ duration: 0.2 }}
+                className="block"
+              >
+                <BookOpen
+                  className="w-4 h-4 text-text-secondary group-hover:text-gold transition-colors"
+                  strokeWidth={1.5}
+                />
+              </motion.span>
+            ) : (
+              <motion.span
+                key="mic"
+                initial={{ rotate: 30, opacity: 0, scale: 0.7 }}
+                animate={{ rotate: 0, opacity: 1, scale: 1 }}
+                exit={{ rotate: -30, opacity: 0, scale: 0.7 }}
+                transition={{ duration: 0.2 }}
+                className="block"
+              >
+                <Mic
+                  className="w-4 h-4 text-text-secondary group-hover:text-gold transition-colors"
+                  strokeWidth={1.5}
+                />
+              </motion.span>
+            )}
+          </AnimatePresence>
         </motion.button>
 
         {/* Hamburger (backup/restore only) */}
