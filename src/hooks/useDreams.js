@@ -182,7 +182,7 @@ export default function useDreams(userId) {
       setError(err.message);
       throw err;
     }
-  }, []);
+  }, [userId]);
 
   // ---- DELETE a dream ----
   const deleteDream = useCallback(async (id) => {
@@ -212,7 +212,7 @@ export default function useDreams(userId) {
       if (data) setDreams(data.map(rowToDream));
       throw err;
     }
-  }, []);
+  }, [userId]);
 
   // ---- UPDATE a dream ----
   const updateDream = useCallback(async (id, updates) => {
